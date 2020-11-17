@@ -76,11 +76,11 @@ class Tracker(object):
 		self.max_frames_to_skip = max_frames_to_skip
 		self.max_trace_length = max_trace_length
 		self.tracks = []
-		self.trackIdCount = 1599
+		self.trackIdCount = 1
 		self.tmp_trackIdCount = 1
 		self.dt = 1/30
 		
-		self.pixel_metre = 10
+		self.pixel_metre = 100
 		
 		self.counting_step = 15
 		
@@ -96,11 +96,7 @@ class Tracker(object):
 		# Create tracks if no tracks vector found
 		# print(len(detections) , len(self.tracks) , count_frame)
 		for i in range(len(self.tracks)):
-			# print("update loop i : ", i , len(assignment), len(self.tracks) )
-			# self.tracks[i].prediction = self.tracks[i].KF.predict()
-			
 
-			# Velocity 
 			if self.tracks[i].stat=="vehicle":
 				
 				orig_x = int(self.tracks[i].KF.u[0])
@@ -119,8 +115,17 @@ class Tracker(object):
 						
 						if vehicle_velocity>0.0:
 							
-							self.tracks[i].sum_speed += vehicle_velocity*3.6
-							self.tracks[i].nbr_speed += 1 
+							if vehicle_velocity>=4.0:
+								
+								# self.tracks[i].sum_speed += vehicle_velocity*3.6
+								self.tracks[i].sum_speed = round(vehicle_velocity*3.6)
+								# self.tracks[i].nbr_speed += 1 
+								self.tracks[i].nbr_speed =  1
+							else:
+								# self.tracks[i].sum_speed += 0
+								self.tracks[i].sum_speed += 0
+								# self.tracks[i].nbr_speed += 1 
+								self.tracks[i].nbr_speed = 1 
 					
 					else:
 						self.tracks[i].time_stamp = count_frame
@@ -132,115 +137,17 @@ class Tracker(object):
 			
 				#Following time / distance 
 
-				if trans_x_y[1] < 640 and trans_x_y[1] > 590 and self.tracks[i].tmp_follow_time == 0:
-					self.tracks[i].tmp_follow_time = 1
 					
-					## Lane 4 
-					if trans_x_y[0]<40 and self.last_rec_time_l4 != 0:
-						follow_time = (count_frame - self.last_rec_time_l4) * self.dt
-						self.tracks[i].used_lane = 4
-						if follow_time< 5.0:							
-							# print('Lane 4 ## follow time  is {:.2f}'.format(follow_time))
-							self.tracks[i].headway = follow_time
-							
-						# else: 
-						# 	# print('Lane 4 ##  new follownig situation')
-						self.last_rec_time_l4 = count_frame
-
-						if self.tracks[i].vehicle_velocity !=1500:
-							
-							follow_distance = follow_time * self.tracks[i].vehicle_velocity
-							# print('Lane 4 ## follow distance is {:.2f} Vehicle {}'.format(follow_distance,self.tracks[i].track_id))
-					
-					if trans_x_y[0]<40 and self.last_rec_time_l4 == 0:
-						# print('Lane 4 ## recorded at {} Vehicle {}'.format(count_frame,self.tracks[i].track_id))
-						self.last_rec_time_l4 = count_frame
-						self.tracks[i].used_lane = 4
-
-					## Lane 3 
-					if trans_x_y[0]>=40 and trans_x_y[0]<70 and self.last_rec_time_l3 != 0:
-						follow_time = (count_frame - self.last_rec_time_l3) * self.dt
-						self.tracks[i].used_lane = 3
-						if follow_time< 5.0:							
-							# print('Lane 3 ## follow time  is {:.2f}'.format(follow_time))
-							self.tracks[i].headway = follow_time
-							
-						# else: 
-						# 	print('Lane 3 ##  new follownig situation')
-						self.last_rec_time_l3 = count_frame
-
-						if self.tracks[i].vehicle_velocity !=1500:
-							
-							follow_distance = follow_time * self.tracks[i].vehicle_velocity
-							# print('Lane 3 ## follow distance is {:.2f} Vehicle {}'.format(follow_distance,self.tracks[i].track_id))
-					
-					if trans_x_y[0]>=40 and trans_x_y[0]<70 and self.last_rec_time_l3 == 0:
-						# print('Lane 3 ## recorded at {} Vehicle {}'.format(count_frame,self.tracks[i].track_id))
-						self.last_rec_time_l3 = count_frame
-						self.tracks[i].used_lane = 3
-
-					## Lane 2 
-					if trans_x_y[0]>=70 and trans_x_y[0]<100 and self.last_rec_time_l2 != 0:
-						follow_time = (count_frame - self.last_rec_time_l2) * self.dt
-						self.tracks[i].used_lane = 2
-						if follow_time< 5.0:							
-							# print('Lane 2 ## follow time  is {:.2f}'.format(follow_time))
-							self.tracks[i].headway = follow_time
-							
-						# else: 
-						# 	print('Lane 2 ##  new follownig situation')
-						self.last_rec_time_l2 = count_frame
-
-						if self.tracks[i].vehicle_velocity !=1500:
-							
-							follow_distance = follow_time * self.tracks[i].vehicle_velocity
-							# print('Lane 2 ## follow distance is {:.2f} Vehicle {}'.format(follow_distance,self.tracks[i].track_id))
-					
-					if trans_x_y[0]>=70 and trans_x_y[0]<100 and self.last_rec_time_l2 == 0:
-						# print('Lane 2 ## recorded at {} Vehicle {}'.format(count_frame,self.tracks[i].track_id))
-						self.last_rec_time_l2 = count_frame
-						self.tracks[i].used_lane = 2
-
-					## Lane 1
-
-					if trans_x_y[0]>=100 and self.last_rec_time_l1 != 0:
-						follow_time = (count_frame - self.last_rec_time_l1) * self.dt
-						self.tracks[i].used_lane = 1
-						if follow_time< 5.0:
-							# print('Lane 1 ## follow time  is {:.2f}'.format(follow_time))
-							self.tracks[i].headway = follow_time
-							
-						# else:
-						# 	print('Lane 1 ##  new follownig situation')
-						self.last_rec_time_l1 = count_frame
-						if self.tracks[i].vehicle_velocity !=1500:	
-							follow_distance = follow_time * self.tracks[i].vehicle_velocity
-							# print('Lane 1 ## follow distance is {:.2f} Vehicle {}'.format(follow_distance,self.tracks[i].track_id))
-					if trans_x_y[0]>=100 and self.last_rec_time_l1 == 0:
-						# print('Lane 1 ## recorded at {} Vehicle {}'.format(count_frame,self.tracks[i].track_id))
-						self.last_rec_time_l1 = count_frame
-						self.tracks[i].used_lane = 1
-
-
-					
-
-					
-					
-						
-						
 			self.tracks[i].prediction = self.tracks[i].KF.predict()
 
 		if (len(self.tracks) == 0):
 			
 			for i in range(len(detections)):
 				track = Track(detections[i], self.tmp_trackIdCount)
-				# print(int(detections[i][0]),int(detections[i][1])," tmp track created : ", self.tmp_trackIdCount)
-				# self.trackIdCount += 1
+
 				self.tmp_trackIdCount += 1
 				self.tracks.append(track)
-				# self.tracks[-1].age++
 
-		# Calculate cost using sum of square distance between predicted vs detected centroids
 	
 		N = len(self.tracks)
 		M = len(detections)
@@ -306,7 +213,6 @@ class Tracker(object):
 			else:
 				self.tracks[i].skipped_frames += 1
 				# print("skipped frame")
-
 		
 		# Now look for un_assigned detects
 
@@ -318,10 +224,6 @@ class Tracker(object):
 				if i not in assignment:
 					un_assigned_detects.append(i)
 
-
-
-		# Update KalmanFilter state, lastResults and tracks trace
-		# for i in range(len(assignment)):
 		for i in range(len(self.tracks)):
 
 			if(assignment[i] != -1):

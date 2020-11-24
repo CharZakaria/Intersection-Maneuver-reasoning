@@ -63,10 +63,129 @@ class Track(object):
 		self.sum_speed = 0
 		self.nbr_speed = 0
 		self.vehicle_type = ""
+		self.trans_x_y = [0,0]
+
+		self.zone_from = 100
+		self.zone_to = 500
+		self.zone_history = []
+		self.all_other_zones = []
+
 		self.used_lane = 0
 		self.headway = 0
 
 		# print("tmp track created: ", np.asarray(prediction))
+	
+	def update_histories(self,zone_id,zone1,zone2,zone3,zone11,zone0):
+		self.zone_history.append(zone_id)
+		self.other_zones_counter(zone1,zone2,zone3,zone11,zone0)
+
+	def other_zones_counter(self,zone1,zone2,zone3,zone11,zone0):
+
+		# call function after adding the current zone
+		# [zone0,zone1,zone2,zone11,zone0]
+
+		other_zones = [0,0,0,0,0]
+		id_zone = 0
+		if self.zone_history[-1]==11:
+			id_zone = 3
+		elif self.zone_history[-1]==0:
+			id_zone = 4
+		else:
+			id_zone= self.zone_history[-1]-1
+
+		
+		other_zones[0]= zone1
+		other_zones[1]= zone2
+		other_zones[2]= zone3
+		other_zones[3]= zone11
+		other_zones[4]= zone0
+
+		other_zones[id_zone]=-1
+
+		self.all_other_zones.append(other_zones)
+
+
+	def correct_zone_from(self,zone_id,zone1,zone2,zone3,zone11,zone0):
+		
+		if zone_id==0:
+			
+			if self.trans_x_y[0]>= 1000 and self.trans_x_y[1]>= 1200:
+				zone_id = 3
+			elif self.trans_x_y[0]<= 1000 and self.trans_x_y[1]>= 1200:
+				zone_id = 2
+			elif self.trans_x_y[0]<= 1200 and self.trans_x_y[1]<= 1200:
+				zone_id = 1
+			else:
+				zone_id= -1
+
+			self.zone_from=zone_id
+			
+			if len(self.zone_history)==0:
+				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
+				self.update_histories(0,zone1,zone2,zone3,zone11,zone0)
+				
+				
+
+
+		if zone_id==11:
+			self.zone_from=1
+			self.update_histories(1,zone1,zone2,zone3,zone11,zone0)
+			self.update_histories(11,zone1,zone2,zone3,zone11,zone0)
+			self.update_histories(0,zone1,zone2,zone3,zone11,zone0)
+
+			
+
+	def route_finder(self,zone_id,zone1,zone2,zone3,zone11,zone0):
+		if self.zone_from == 100:
+			
+			if zone_id!=0 and zone_id!=11:
+				self.zone_from = zone_id
+			else:
+				self.correct_zone_from(zone_id,zone1,zone2,zone3,zone11,zone0)			
+
+		if self.zone_to == 500:
+			self.zone_to = zone_id
+		elif self.zone_to==self.zone_from:
+			self.zone_to = 500
+		else:
+			self.zone_to = zone_id
+	
+	def route_history(self,zone_id,zone1,zone2,zone3,zone11,zone0):			
+		if len(self.zone_history)==0:
+			if zone_id != 100:
+				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
+
+		elif self.zone_history[-1]!= zone_id and zone_id !=100:
+			if zone_id in self.zone_history:
+				self.zone_history[-1]
+			else:
+				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
+
+
+	def route_history_saver(self):
+		result = ""
+		other_zones_result = ""
+		if (1 in self.zone_history) or (11 in self.zone_history):
+			if len(self.zone_history)==4:
+				# print(self.track_id,self.zone_history)
+				result = "{};{};{};[{},{},{},{}]; " .format(self.track_id,self.time_stamp,self.vehicle_type,self.zone_history[0],self.zone_history[1],self.zone_history[2],self.zone_history[3])
+				
+											
+		else:
+			if len(self.zone_history)==3:
+				# print(self.track_id,self.zone_history)
+				result = "{};{};{};[{},{},{}];" .format(self.track_id,self.time_stamp,self.vehicle_type,self.zone_history[0],self.zone_history[1],self.zone_history[2])
+		
+		for x in range(len(self.all_other_zones)):
+			other_zones_result+= "[{},{},{},{},{}];".format(self.all_other_zones[x][0],self.all_other_zones[x][1],self.all_other_zones[x][2],self.all_other_zones[x][3],self.all_other_zones[x][4])
+
+		if result!="":
+			result+= other_zones_result
+
+		return result
+
+
+
 
 class Tracker(object):
 
@@ -84,10 +203,6 @@ class Tracker(object):
 		
 		self.counting_step = 15
 		
-		self.last_rec_time_l1 = 0
-		self.last_rec_time_l2 = 0
-		self.last_rec_time_l3 = 0
-		self.last_rec_time_l4 = 0
 
 		self.result_text = "Class | Lane | Headway | Mean speed"
 	
@@ -103,6 +218,7 @@ class Tracker(object):
 				orig_y = int(self.tracks[i].KF.u[1])
 				
 				trans_x_y = trans_pixel(orig_x,orig_y,matrix_h)
+				self.tracks[i].trans_x_y = trans_x_y
 
 
 				if count_frame%self.counting_step==0:
@@ -256,17 +372,27 @@ class Tracker(object):
 		for i in range(len(self.tracks)):
 			if (self.tracks[i].skipped_frames > self.max_frames_to_skip):
 				del_tracks.append(i)
-				if self.tracks[i].used_lane!=0 and self.tracks[i].vehicle_type != "":
+				if self.tracks[i].vehicle_type != "":
 					
 					mean_speed = 0
 					if self.tracks[i].nbr_speed>0:
-						mean_speed = (self.tracks[i].sum_speed/self.tracks[i].nbr_speed)
-					print("{}|{}|{}|{}|{:.2f}|{:.2f} Km/h" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
+						mean_speed = (self.tracks[i].sum_speed//self.tracks[i].nbr_speed)
+					# print("{}|{}|{}|{}|{:.2f}|{:.2f} Km/h" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
 					self.result_text= "{} | Lane {} | {:.2f} | {:.2f} Km/h".format(self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed)
 					
-					record_to_file = open("records.txt","a+")
-					record_to_file.write("{};{};{};{};{};{:.2f} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
-					record_to_file.close()
+					# record_to_file = open("records.txt","a+")
+					# record_to_file.write("{};{};{};{};{};{:.2f} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
+					# record_to_file.close()
+
+					
+					result = self.tracks[i].route_history_saver()
+					if result!="":
+						print("#### ",result+str(mean_speed)+"\n")
+						# record_to_file.write("{};{};{};{:.2f};{} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].headway,mean_speed,self.tracks[i].zone_history))
+						record_to_file = open("scene_stats.txt","a+")
+						record_to_file.write(result+str(mean_speed)+"\n")
+						record_to_file.close()
+
 			if (self.tracks[i].stat=="tmp" and self.tracks[i].skipped_frames>0):
 				del_tracks.append(i)
 				
@@ -281,5 +407,60 @@ class Tracker(object):
 					# del assignment[id]
 				else:
 					print("ERROR: id is greater than length of tracks")
+	
 
 
+	def locate_zone(self):
+
+		
+		for i in range(len(self.tracks)):
+			zone1 = 0
+			zone2 = 0
+			zone3 = 0
+			zone11 = 0
+			zone0 = 0
+			
+			# zone 1
+			zone_id = 100 
+			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]<650):
+				zone1+=1
+				zone_id = 1
+
+
+			# zone 2
+			if (self.tracks[i].trans_x_y[0]<500 and self.tracks[i].trans_x_y[1]>=1100):
+				zone2+=1
+				zone_id = 2					
+			
+			# zone 3 
+			if (self.tracks[i].trans_x_y[0]>=1500 and self.tracks[i].trans_x_y[1]>=1100):
+				zone3+=1
+				zone_id = 3				
+
+			# zone11
+			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=650 and self.tracks[i].trans_x_y[1]<1100):
+				zone11+=1
+				zone_id = 11			
+			
+			# zone0
+			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=1100):
+				zone0+=1
+				zone_id = 0
+
+
+
+			self.tracks[i].route_finder(zone_id,zone1,zone2,zone3,zone11,zone0)			
+			self.tracks[i].route_history(zone_id,zone1,zone2,zone3,zone11,zone0)
+			self.tracks[i].route_history_saver()
+
+	
+
+			# print("zone history of : ",self.tracks[i].track_id,self.tracks[i].zone_history )				
+
+		# print("| zone1 : ",len(zone1),"| zone2 : ",len(zone2),"| zone3 : ",len(zone3),"| zone11 : ",len(zone11), "| zone0 : ",len(zone0))
+
+	# def locate_trans(self):
+
+		
+	# 	for i in range(len(self.tracks)):
+	# 		print(self.tracks[i].track_id," : " ,  self.tracks[i].trans_x_y[0],self.tracks[i].trans_x_y[1])

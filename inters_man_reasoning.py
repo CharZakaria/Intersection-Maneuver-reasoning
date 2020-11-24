@@ -89,16 +89,16 @@ def main():
 			frame_count += 1
 			frame_zero +=1
 			
-			if frame_count%1==0:
+			if frame_count>=90:
 				
 
 				frame = orig_frame0[380:800,100:]
 				
-				ppts = np.array([[850,0],[1150,70],[1400,100],[1820,100],[1820,0]], np.int32)
+				ppts = np.array([[800,0],[1000,50],[1150,70],[1400,100],[1820,100],[1820,0]], np.int32)
 				cv2.fillConvexPoly(frame,ppts,0)
 				ppts = np.array([[0,0],[0,150],[400,130],[300,0]], np.int32)
 				cv2.fillConvexPoly(frame,ppts,0)
-				ppts = np.array([[0,420],[730,330],[1820,300],[1820,420]], np.int32)
+				ppts = np.array([[0,420],[700,300],[1820,300],[1820,420]], np.int32)
 				cv2.fillConvexPoly(frame,ppts,0)
 				
 				centers,vehicle_types = detector.detect(frame)
@@ -115,8 +115,12 @@ def main():
 						if tracker.tracks[i].nbr_speed>0:
 							
 							mean_speed = (tracker.tracks[i].sum_speed/tracker.tracks[i].nbr_speed)
+							zone_from = tracker.tracks[i].zone_from
+							zone_to = tracker.tracks[i].zone_to
+							
 							if mean_speed>0:
-								cv2.putText(frame, "{:.0f}".format(mean_speed),(tracker.tracks[i].trace[0][0]+10,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
+								# cv2.putText(frame, "{:.0f}".format(mean_speed),(tracker.tracks[i].trace[0][0]+10,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
+								cv2.putText(frame, format(zone_from)+","+format(zone_to),(tracker.tracks[i].trace[0][0]+20,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
 						
 						if (len(tracker.tracks[i].trace) > 1):
 							
@@ -130,6 +134,13 @@ def main():
 								
 								
 								cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), track_colors[clr], 2)
+
+				## Reasoning
+
+				tracker.locate_zone()
+				# tracker.locate_trans()
+
+
 
 				cv2.putText(frame,tracker.result_text , (250,1200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 3)
 				orig_frame = frame

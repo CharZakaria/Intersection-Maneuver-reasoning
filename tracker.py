@@ -66,6 +66,7 @@ class Track(object):
 		self.trans_x_y = [0,0]
 
 		self.zone_from = 100
+		self.old_zone_from = 100
 		self.zone_to = 500
 		self.zone_history = []
 		self.all_other_zones = []
@@ -76,8 +77,9 @@ class Track(object):
 		# print("tmp track created: ", np.asarray(prediction))
 	
 	def update_histories(self,zone_id,zone1,zone2,zone3,zone11,zone0):
-		self.zone_history.append(zone_id)
-		self.other_zones_counter(zone1,zone2,zone3,zone11,zone0)
+		if zone_id not in self.zone_history:
+			self.zone_history.append(zone_id)
+			self.other_zones_counter(zone1,zone2,zone3,zone11,zone0)
 
 	def other_zones_counter(self,zone1,zone2,zone3,zone11,zone0):
 
@@ -104,11 +106,15 @@ class Track(object):
 
 		self.all_other_zones.append(other_zones)
 
-
 	def correct_zone_from(self,zone_id,zone1,zone2,zone3,zone11,zone0):
+		
+		if len(self.zone_history)==0:
+			self.old_zone_from = zone_id
 		
 		if zone_id==0:
 			
+			
+
 			if self.trans_x_y[0]>= 1000 and self.trans_x_y[1]>= 1200:
 				zone_id = 3
 			elif self.trans_x_y[0]<= 1000 and self.trans_x_y[1]>= 1200:
@@ -121,25 +127,21 @@ class Track(object):
 			self.zone_from=zone_id
 			
 			if len(self.zone_history)==0:
-				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
-				self.update_histories(0,zone1,zone2,zone3,zone11,zone0)
-				
-				
 
+				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
 
 		if zone_id==11:
+
 			self.zone_from=1
 			self.update_histories(1,zone1,zone2,zone3,zone11,zone0)
-			self.update_histories(11,zone1,zone2,zone3,zone11,zone0)
-			self.update_histories(0,zone1,zone2,zone3,zone11,zone0)
-
-			
+	
 
 	def route_finder(self,zone_id,zone1,zone2,zone3,zone11,zone0):
 		if self.zone_from == 100:
 			
 			if zone_id!=0 and zone_id!=11:
 				self.zone_from = zone_id
+				self.route_history(zone_id,zone1,zone2,zone3,zone11,zone0)
 			else:
 				self.correct_zone_from(zone_id,zone1,zone2,zone3,zone11,zone0)			
 
@@ -150,17 +152,15 @@ class Track(object):
 		else:
 			self.zone_to = zone_id
 	
-	def route_history(self,zone_id,zone1,zone2,zone3,zone11,zone0):			
+	def route_history(self,zone_id,zone1,zone2,zone3,zone11,zone0):	
 		if len(self.zone_history)==0:
 			if zone_id != 100:
 				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
 
 		elif self.zone_history[-1]!= zone_id and zone_id !=100:
-			if zone_id in self.zone_history:
-				self.zone_history[-1]
-			else:
+			if zone_id not in self.zone_history:
+				
 				self.update_histories(zone_id,zone1,zone2,zone3,zone11,zone0)
-
 
 	def route_history_saver(self):
 		result = ""
@@ -205,6 +205,12 @@ class Tracker(object):
 		
 
 		self.result_text = "Class | Lane | Headway | Mean speed"
+
+		self.zone1 = 0
+		self.zone2 = 0
+		self.zone3 = 0
+		self.zone11 = 0
+		self.zone0 = 0
 	
 	def Update(self, detections,vehicle_types,count_frame,matrix_h):
 
@@ -410,15 +416,16 @@ class Tracker(object):
 	
 
 
-	def locate_zone(self):
-
+	def locate_zone(self,desired_track=-100):
+		returned_zone_id = 100
+		zone1 = 0
+		zone2 = 0
+		zone3 = 0
+		zone11 = 0
+		zone0 = 0
 		
 		for i in range(len(self.tracks)):
-			zone1 = 0
-			zone2 = 0
-			zone3 = 0
-			zone11 = 0
-			zone0 = 0
+
 			
 			# zone 1
 			zone_id = 100 
@@ -447,11 +454,62 @@ class Tracker(object):
 				zone0+=1
 				zone_id = 0
 
+			if i==desired_track:
+
+				returned_zone_id = zone_id
+
+		self.zone1 = zone1
+		self.zone2 = zone2
+		self.zone3 = zone3
+		self.zone11 = zone11
+		self.zone0 = zone0
+
+		# print("zone count : ",desired_track,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)
+
+		
+			
+		return returned_zone_id
 
 
-			self.tracks[i].route_finder(zone_id,zone1,zone2,zone3,zone11,zone0)			
-			self.tracks[i].route_history(zone_id,zone1,zone2,zone3,zone11,zone0)
-			self.tracks[i].route_history_saver()
+	def calculate_histories(self):
+
+		for i in range(len(self.tracks)):
+			zone_id = self.locate_zone(i)
+
+			if len(self.tracks[i].zone_history)==0:
+				
+				self.tracks[i].route_finder(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)			
+				self.tracks[i].route_history(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)
+				# self.tracks[i].route_history_saver()
+				
+				if self.tracks[i].old_zone_from==0:
+					self.tracks[i].old_zone_from=100			
+
+					self.locate_zone()
+					self.tracks[i].update_histories(0,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)
+
+
+				elif self.tracks[i].old_zone_from==11:
+
+					self.tracks[i].old_zone_from=100
+					
+					self.locate_zone()
+					self.tracks[i].update_histories(11,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)			
+
+					self.locate_zone()
+					self.tracks[i].update_histories(0,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)			
+				
+				else:
+					self.tracks[i].route_finder(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)			
+					self.tracks[i].route_history(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)
+
+				self.tracks[i].route_history_saver()
+
+			
+			else:
+				self.tracks[i].route_finder(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)			
+				self.tracks[i].route_history(zone_id,self.zone1,self.zone2,self.zone3,self.zone11,self.zone0)
+				self.tracks[i].route_history_saver()
 
 	
 

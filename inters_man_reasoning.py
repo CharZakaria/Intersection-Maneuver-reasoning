@@ -89,7 +89,7 @@ def main():
 			frame_count += 1
 			frame_zero +=1
 			
-			if frame_count>=90:
+			if frame_count>=1300:
 				
 
 				frame = orig_frame0[380:800,100:]
@@ -137,14 +137,14 @@ def main():
 
 				## Reasoning
 
-				tracker.locate_zone()
+				tracker.calculate_histories()
 				# tracker.locate_trans()
 
 
 
 				cv2.putText(frame,tracker.result_text , (250,1200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 3)
 				orig_frame = frame
-				display_frame_count = frame_zero/frame_rate
+				display_frame_count = frame_zero
 				
 				cv2.putText(orig_frame,f+' / : ' "{:.2f}".format(display_frame_count), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
 				

@@ -395,7 +395,7 @@ class Tracker(object):
 					if result!="":
 						print("#### ",result+str(mean_speed)+"\n")
 						# record_to_file.write("{};{};{};{:.2f};{} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].headway,mean_speed,self.tracks[i].zone_history))
-						record_to_file = open("scene_stats.txt","a+")
+						record_to_file = open("./scene_stats_2021.txt","a+")
 						record_to_file.write(result+str(mean_speed)+"\n")
 						record_to_file.close()
 

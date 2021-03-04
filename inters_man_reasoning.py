@@ -28,7 +28,7 @@ def rotate(image, angle, center = None, scale = 1.0):
 
 def format_img_size(img):
 	""" formats the image size based on config """
-	img_min_side = 600
+	img_min_side = 240
 	(height,width,_) = img.shape
 		
 	if width <= height:
@@ -72,7 +72,8 @@ def main():
 	# # Calculate Homography
 	matrix_h, status = cv2.findHomography(pts_src_np, pts_dst)
 	
-	path_video = '/home/howdrive/Videos/intersection_videos/'  
+	# path_video = '/home/howdrive/Videos/intersection_videos/' 
+	path_video = 'C:/Users/charzakaria/Videos/intersection_videos/' 
 	frame_rate = 30
 
 	for f in os.listdir(path_video):
@@ -89,7 +90,7 @@ def main():
 			frame_count += 1
 			frame_zero +=1
 			
-			if frame_count>=1300:
+			if frame_count>=0:
 				
 
 				frame = orig_frame0[380:800,100:]
@@ -115,12 +116,12 @@ def main():
 						if tracker.tracks[i].nbr_speed>0:
 							
 							mean_speed = (tracker.tracks[i].sum_speed/tracker.tracks[i].nbr_speed)
-							zone_from = tracker.tracks[i].zone_from
-							zone_to = tracker.tracks[i].zone_to
+							zone_history = tracker.tracks[i].zone_history
+							# zone_to = tracker.tracks[i].zone_to
 							
 							if mean_speed>0:
 								# cv2.putText(frame, "{:.0f}".format(mean_speed),(tracker.tracks[i].trace[0][0]+10,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
-								cv2.putText(frame, format(zone_from)+","+format(zone_to),(tracker.tracks[i].trace[0][0]+20,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
+								cv2.putText(frame, format(zone_history),(tracker.tracks[i].trace[0][0]+20,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
 						
 						if (len(tracker.tracks[i].trace) > 1):
 							
@@ -142,16 +143,16 @@ def main():
 
 
 
-				cv2.putText(frame,tracker.result_text , (250,1200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 3)
-				orig_frame = frame
-				display_frame_count = frame_zero
+				# cv2.putText(frame,tracker.result_text , (250,1200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 3)
+				# orig_frame = frame
+				# display_frame_count = frame_zero
 				
-				cv2.putText(orig_frame,f+' / : ' "{:.2f}".format(display_frame_count), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
+				# cv2.putText(orig_frame,f+' / : ' "{:.2f}".format(display_frame_count), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
 				
 
-				
-				cv2.imshow('Analyzing', orig_frame)
-				cv2.waitKey(1)
+				# resized_frame = format_img_size(orig_frame)
+				# cv2.imshow('Analyzing', resized_frame)
+				# cv2.waitKey(1)
 
 
 				# cv2.imshow('warpPerspective', im_out)

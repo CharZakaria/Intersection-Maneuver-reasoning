@@ -6,5 +6,4 @@ This project aims to analyze drivers maneuvers during the intersection using com
 a file is missing here : the yolov3 weights 
 
 
-
-                   ![Alt text](demo.gif)
+![Alt text](demo.gif)

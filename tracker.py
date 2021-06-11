@@ -61,6 +61,7 @@ class Track(object):
 
 		self.time_stamp = 0
 		self.sum_speed = 0
+		self.min_recorded_speed = 1000
 		self.nbr_speed = 0
 		self.vehicle_type = ""
 		self.trans_x_y = [0,0]
@@ -205,6 +206,13 @@ class Tracker(object):
 		
 
 		self.result_text = "Class | Lane | Headway | Mean speed"
+		
+		## intersection analysis variables
+		self.trajectory_history = []
+		self.non_respect_row_history = []
+		self.respect_row_history = []
+		self.non_stopped_history = []
+		self.stopped_history = []
 
 		self.zone1 = 0
 		self.zone2 = 0
@@ -234,7 +242,12 @@ class Tracker(object):
 						vehicle_velocity = np.sqrt(((trans_x_y[0]- self.tracks[i].KF.trans_lastResult[0])/(self.pixel_metre*self.counting_step*self.dt)) **2 + ((trans_x_y[1]- self.tracks[i].KF.trans_lastResult[1])/(self.pixel_metre*self.counting_step*self.dt)) **2)				
 						# print("Vehicle {} frame {} Velocity {:.2f} Km/h".format(self.tracks[i].track_id ,count_frame,vehicle_velocity*3.6) )
 						self.tracks[i].vehicle_velocity = vehicle_velocity
-						
+
+						# stopped vehicle detection
+
+						if self.tracks[i].min_recorded_speed>vehicle_velocity:
+							self.tracks[i].min_recorded_speed = vehicle_velocity
+
 						if vehicle_velocity>0.0:
 							
 							if vehicle_velocity>=4.0:
@@ -383,21 +396,43 @@ class Tracker(object):
 					mean_speed = 0
 					if self.tracks[i].nbr_speed>0:
 						mean_speed = (self.tracks[i].sum_speed//self.tracks[i].nbr_speed)
-					# print("{}|{}|{}|{}|{:.2f}|{:.2f} Km/h" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
-					self.result_text= "{} | Lane {} | {:.2f} | {:.2f} Km/h".format(self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed)
-					
-					# record_to_file = open("records.txt","a+")
-					# record_to_file.write("{};{};{};{};{};{:.2f} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].used_lane,self.tracks[i].headway,mean_speed))
-					# record_to_file.close()
 
 					
 					result = self.tracks[i].route_history_saver()
 					if result!="":
-						print("#### ",result+str(mean_speed)+"\n")
-						# record_to_file.write("{};{};{};{:.2f};{} \n" .format(self.tracks[i].track_id,self.tracks[i].time_stamp,self.tracks[i].vehicle_type,self.tracks[i].headway,mean_speed,self.tracks[i].zone_history))
-						record_to_file = open("./scene_stats_2021.txt","a+")
-						record_to_file.write(result+str(mean_speed)+"\n")
-						record_to_file.close()
+						txt_rs = self.tracks[i].zone_history
+						# print("#### ",txt_rs+"\n")
+						self.trajectory_history.append(txt_rs)
+
+						# stopped and non_stopped vehicle counting
+						if len(self.tracks[i].zone_history)==4 and self.tracks[i].zone_history[0]==1:
+							if self.tracks[i].min_recorded_speed<0.3:
+								# self.stopped_history.append(str(self.tracks[i].min_recorded_speed))
+								self.stopped_history.append("0")
+							else:
+								self.non_stopped_history.append("0")
+								print("non stopped ", self.tracks[i].time_stamp, self.tracks[i].zone_history )
+
+						#row violation counting 
+						if (self.tracks[i].zone_history[0]==1 and len(self.tracks[i].zone_history)==4): # [1,11,0,x]
+							if self.tracks[i].all_other_zones[2][1]+self.tracks[i].all_other_zones[2][2]>0 or self.tracks[i].all_other_zones[2][4]>0:
+								self.non_respect_row_history.append("0")
+								print("non row ", self.tracks[i].time_stamp, self.tracks[i].zone_history )
+
+							else:
+								self.respect_row_history.append("0")
+
+						if (self.tracks[i].zone_history[0]==2 and len(self.tracks[i].zone_history)==4): # [2,0,11,1]
+							if (self.tracks[i].all_other_zones[2][4]>0 or self.tracks[i].all_other_zones[2][2])>0: # check when track i enters zone 11 if someone is in zone 0 or zone 2
+								self.non_respect_row_history.append("0")
+								print("non row ", self.tracks[i].time_stamp, self.tracks[i].zone_history )
+
+							else:
+								self.respect_row_history.append("0")
+
+						# record_to_file = open("./scene_stats_2021.txt","a+")
+						# record_to_file.write(result+str(mean_speed)+"\n")
+						# record_to_file.close()
 
 			if (self.tracks[i].stat=="tmp" and self.tracks[i].skipped_frames>0):
 				del_tracks.append(i)
@@ -445,12 +480,14 @@ class Tracker(object):
 				zone_id = 3				
 
 			# zone11
-			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=650 and self.tracks[i].trans_x_y[1]<1100):
+			# if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=650 and self.tracks[i].trans_x_y[1]<1100):
+			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1600 and self.tracks[i].trans_x_y[1]>=650 and self.tracks[i].trans_x_y[1]<1150):
 				zone11+=1
 				zone_id = 11			
 			
 			# zone0
-			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=1100):
+			# if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1500 and self.tracks[i].trans_x_y[1]>=1100):
+			if (self.tracks[i].trans_x_y[0]>=500 and self.tracks[i].trans_x_y[0]<1600 and self.tracks[i].trans_x_y[1]>=1150):
 				zone0+=1
 				zone_id = 0
 

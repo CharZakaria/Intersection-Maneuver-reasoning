@@ -5,4 +5,4 @@ This project aims to analyze drivers maneuvers during the intersection using com
 *** This is an ongoing project ***
 a file is missing here : the yolov3 weights 
 
-![grab-landing-page](https://github.com/CharZakaria/Intersection-Maneuver-reasoning/blob/main/ezgif.com-gif-maker.gif)
+![](https://github.com/CharZakaria/Intersection-Maneuver-reasoning/blob/main/ezgif.com-gif-maker.gif)

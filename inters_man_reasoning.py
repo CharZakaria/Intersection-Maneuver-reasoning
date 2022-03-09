@@ -3,8 +3,9 @@ import cv2
 import copy
 import numpy as np
 from detectors import Detectors
+# a new detection method is available at new_detector (using YOLOv5 in a Ressource-efficient framework)
 from tracker import Tracker
-# from preprocessor import Preprocessor
+
 import os
 
 def trans_pixel(x,y,matrix_h):
@@ -92,7 +93,7 @@ def main():
 	# # Calculate Homography
 	matrix_h, status = cv2.findHomography(pts_src_np, pts_dst)
 	
-	# path_video = '/home/howdrive/Videos/intersection_videos/' 
+	path_video = '/path_to_video/' 
 	icon_dims = 75
 	logo_dims = 114.7
 	non_stop_icon= cv2.resize(cv2.imread("./icons/non_stop.png"), (icon_dims, icon_dims), interpolation=cv2.INTER_CUBIC)
@@ -108,9 +109,9 @@ def main():
 	right_left,right_left_width,right_left_height = format_img_size(cv2.imread("./icons/right_left.png"),icon_dims)
 	left_right,left_right_width,left_right_height = format_img_size(cv2.imread("./icons/left_right.png"),icon_dims)
 	none_icon,none_icon_width,none_icon_height = format_img_size(cv2.imread("./icons/none.png"),icon_dims)
-	
-	
+
 	ticlablogo,ticlab_width,ticlab_height = format_img_size(cv2.imread("./icons/uir.png"),logo_dims)
+	
 	
 
 	path_video = './dataset/' 
@@ -149,65 +150,22 @@ def main():
 				tracker.Update(centers,vehicle_types,frame_count,matrix_h)
 				
 
-				# for i in range(len(tracker.tracks)):
-				# 	# if tracker.tracks[i].skipped_frames==0 and tracker.tracks[i].stat=="vehicle":                    
-				# 	if tracker.tracks[i].stat=="vehicle":                    
-				# 		# print("vehicle : ",tracker.tracks[i].track_id," ",(int(tracker.tracks[i].prediction[0]),int(tracker.tracks[i].prediction[1])),"frame : ", frame_count)
-				# 		clr = tracker.tracks[i].track_id % 9
-				# 		# calc_velocity = "{:.2f} Km/h ".format(tracker.tracks[i].vehicle_velocity) 
-				# 		if tracker.tracks[i].nbr_speed>0:
-							
-				# 			mean_speed = (tracker.tracks[i].sum_speed/tracker.tracks[i].nbr_speed)
-				# 			zone_history = tracker.tracks[i].zone_history
-							# zone_to = tracker.tracks[i].zone_to
-							
-							# drawing speed for every tracked vehicle
-							# if mean_speed>0:
-							# 	# cv2.putText(frame, "{:.0f}".format(mean_speed),(tracker.tracks[i].trace[0][0]+10,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
-							# 	cv2.putText(frame, format(zone_history),(tracker.tracks[i].trace[0][0]+20,tracker.tracks[i].trace[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1,track_colors[clr],2,cv2.LINE_AA)
-						
-						# drawing tracking history for every tracked vehicle
-						# if (len(tracker.tracks[i].trace) > 1):
-							
-						# 	for j in range(len(tracker.tracks[i].trace)-1):
-						# 		# Draw trace line
-
-						# 		x1 = tracker.tracks[i].trace[j][0]
-						# 		y1 = tracker.tracks[i].trace[j][1]
-						# 		x2 = tracker.tracks[i].trace[j+1][0]
-						# 		y2 = tracker.tracks[i].trace[j+1][1]
-								
-								
-						# 		cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), track_colors[clr], 2)
-
-				## Reasoning
+				
+				## Reasoning System
 
 				tracker.calculate_histories()
 
-				# report violations : 
-				# if len(tracker.non_respect_row_history)>0:
-				# 	print("-----non respect of row",len(tracker.non_respect_row_history))
-				# if len(tracker.non_stopped_history)>0:
-				# 	print("-----non respect of STOP sign : ",len(tracker.non_stopped_history))
-				# if len(tracker.respect_row_history)>0:
-				# 	print("++respected row", len(tracker.respect_row_history))
-				# if len(tracker.stopped_history)>0:
-				# 	print("++respected STOP sign",len(tracker.stopped_history))
 
 
-				len_trajectory_history =	len(tracker.trajectory_history)
-			
+				len_trajectory_history =	len(tracker.trajectory_history)			
 				len_non_respect_row_history =	len(tracker.non_respect_row_history)
-			
 				len_respect_row_history =	len(tracker.respect_row_history)
-			
 				len_non_stopped_history =	len(tracker.non_stopped_history)
-			
 				len_stopped_history =	len(tracker.stopped_history)
 				
 				if len_trajectory_history > 0:
 					resulted_trajectory = tracker.trajectory_history[-1]
-					# print(resulted_trajectory)
+				
 				else:
 					resulted_trajectory = "none"
 				
@@ -227,26 +185,11 @@ def main():
 				if str(resulted_trajectory) == "none":
 					img_traject,traject_width,traject_height = none_icon,none_icon_width,none_icon_height
 
-					
-			# tracker.locate_trans()
-
-
-
-				# cv2.putText(frame,tracker.result_text , (250,1200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 3)
-				# orig_frame = frame
-				# display_frame_count = frame_zero
-				
-				# cv2.putText(orig_frame,f+' / : ' "{:.2f}".format(display_frame_count), (300,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
-				
-
 				resized_frame,new_width,new_height = format_img_size(orig_frame0)
-				resized_frame[new_height-icon_dims:,:]=0
-				
-				
+				resized_frame[new_height-icon_dims:,:]=0				
 				resized_frame[:ticlab_height,:ticlab_width]=ticlablogo
-				
-
 				resized_frame[new_height-icon_dims:,0:icon_dims]=non_row_icon
+				
 				cv2.putText(resized_frame,str(len_non_respect_row_history), (icon_dims+25,new_height-13), cv2.FONT_HERSHEY_SIMPLEX, 2,(0,0,255),4,cv2.LINE_AA)
 
 				resized_frame[new_height-icon_dims:,new_width//5:new_width//5+icon_dims]=row_icon

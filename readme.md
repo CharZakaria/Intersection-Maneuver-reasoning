@@ -5,7 +5,7 @@ In this project we propose a low-cost detection method
 
 This work is under-review
 
-final files will be uploaded soon 
+<strike>final files will be uploaded soon </strike>
 
 
 ![Alt text](demo.gif)

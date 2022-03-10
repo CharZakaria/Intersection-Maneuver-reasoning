@@ -177,40 +177,6 @@ def pred_box(pred_boxs_copy):
     return pred_boxs
 
 
-
-kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-fgbg = cv2.createBackgroundSubtractorMOG2(history=50, varThreshold=16, detectShadows=False)
-
-for model_name in ['yolov5s','yolov5m', 'yolov5l', 'yolov5x']:
-    
-    model = torch.hub.load('ultralytics/yolov5', model_name)
-    model.conf=0.30
-
-    #extract classes names
-    frame_name = str(1).zfill(8) + '.jpg'    
-    frame = cv2.imread(path_frames+ frame_name)[:,:,::-1] 
-    results = model(frame)
-    classes= results.__dict__['names']
-
-    metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
-
-    for i in range(7200,8199):
-           
-        frame_name = str(i).zfill(8) + '.jpg'    
-        frame = cv2.imread(path_frames+ frame_name)[:,:,::-1]  
-        frame=frame[:,:780] 
-        label_file = str(i).zfill(8) + '.txt'
-        edged = Background_subtraction(frame)
-
-        moving_objects_d = detect_moving_objects(frame,edged)        
-        
-        gt_boxs= gt_box(label_file,frame)
-        pred_boxs = pred_box(moving_objects_d)
-        if pred_boxs:
-            # print('pred_boxs' ,pred_boxs,'\n')
-            # print('gt_boxs' ,gt_boxs,'\n')
-            metric_fn.add(np.array(pred_boxs), np.array(gt_boxs))
-
 def Background_subtraction_proposed(frame,size):
     
     fgmask = fgbg.apply(frame)
@@ -225,7 +191,7 @@ def Background_subtraction_proposed(frame,size):
     
     return edged
 
-def detect_moving_objects_proposed(frame,edged):
+def detect_moving_objects_proposed(frame,edged,model):
                                         
     
     contours, hierarchy = cv2.findContours(edged,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
@@ -234,9 +200,9 @@ def detect_moving_objects_proposed(frame,edged):
     height, width = edged.shape
     min_x, min_y = width, height
     max_x = max_y = 0  
-    # computes the bounding box for the contour, and draws it on the frame,
     
-    pre_process,  inference,  NMS , nbr_predections_ours=[],[],[],[]
+#     pre_process,  inference,  NMS , nbr_predections_ours=[],[],[],[]
+    final_predictions = []
     
     for contour, hier in zip(contours, hierarchy):
         
@@ -253,28 +219,21 @@ def detect_moving_objects_proposed(frame,edged):
     #         print(h_roi,w_roi)
             results = model(roi,max(h_roi,w_roi))
             if results:
-                pre_process.append(results.__dict__['t'][0])
-                inference.append(results.__dict__['t'][1])
-                NMS.append(results.__dict__['t'][2])
-                nbr_predections_ours.append(len(results.__dict__['pred'][0]))
+                final_predictions.append(results.__dict__['pred'][0])
+
     
-    return [len(NMS),sum(nbr_predections_ours),sum(pre_process), sum(inference), sum(NMS)]
+    return final_predictions
 
+def optimized_detection_method(frame, model_name = 'yolov5s' ):
 
-kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-fgbg = cv2.createBackgroundSubtractorMOG2(history=50, varThreshold=16, detectShadows=False)
-
-for model_name in ['yolov5s','yolov5m', 'yolov5l', 'yolov5x']:
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+    fgbg = cv2.createBackgroundSubtractorMOG2(history=50, varThreshold=16, detectShadows=False)
+    model_name = 
     
     model = torch.hub.load('ultralytics/yolov5', model_name)
     #set confidence to 0.30
     model.conf=0.30
 
-    #extract classes names
-    frame_name = str(1).zfill(8) + '.jpg'    
-    frame = cv2.imread(path_frames+ frame_name) 
-    results = model(frame)
-    classes= results.__dict__['names']
     h,w,_=  frame.shape
     
     ## normalize shape to 640
@@ -284,37 +243,13 @@ for model_name in ['yolov5s','yolov5m', 'yolov5l', 'yolov5x']:
     if w<h and h>640:
         new_h = 640
         new_w = w * 640//h
+ 
+    edged=Background_subtraction_proposed(frame,(new_w,new_h))
+    frame = cv2.resize(frame,(new_w,new_h))
 
-
-
-    metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
-    results_detections=[]
-    for i in range(7200,8199): 
-        result=[]  
-        frame_name = str(i).zfill(8) + '.jpg'    
-        frame = cv2.imread(path_frames+ frame_name)
-        
-
-        edged=Background_subtraction_proposed(frame,(new_w,new_h))
-
-
-        frame = cv2.resize(frame,(new_w,new_h))
-
-        results = model(frame,max(new_h,new_w))
-        result.extend([frame_name,len(results.__dict__['pred'][0]),results.__dict__['t'][0],results.__dict__['t'][1], results.__dict__['t'][2]])
-           
-       
-        result.extend(detect_moving_objects_proposed(frame,edged))
-        results_detections.append(result)
-
-    df = pd.DataFrame(data=results_detections)
+    final_results=detect_moving_objects_proposed(frame,edged,model)
     
-    df.columns =['frame_name', 'C_nbr_predections', 'C_pre_process',  'C_inference',  'C_NMS','P_condidate_nbr', 'P_nbr_predections', 'P_sum(pre_process)', 'P_sum(inference)', 'P_sum(NMS)']
-    df['C_time']=df.apply(lambda row: row['C_pre_process']+row['C_inference']+row['C_NMS'], axis=1)
-    df['P_time']=df.apply(lambda row: row['P_sum(pre_process)']+row['P_sum(inference)']+row['P_sum(NMS)'], axis=1)
-    print('conventional sum time',df.C_time.sum(), 'conventional mean time',df.C_time.mean())
-    print('proposed sum time',df.P_time.sum(), 'proposed mean time',df.P_time.mean())
-    df.to_csv('results/proposed_'+model_name+'.csv')
+    return final_results
 
 
 

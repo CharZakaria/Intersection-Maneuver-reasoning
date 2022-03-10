@@ -3,7 +3,8 @@ import cv2
 import copy
 import numpy as np
 from detectors import Detectors
-# a new detection method is available at new_detector (using YOLOv5 in a Ressource-efficient framework)
+# a new detection method is available at new_detector.py (that uses YOLOv5 in a Ressource-efficient framework)
+# call the new detection method using :  optimized_detection_method(frame, model_name = 'yolov5s')
 from tracker import Tracker
 
 import os
